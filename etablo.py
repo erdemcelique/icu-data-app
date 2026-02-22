@@ -2,27 +2,14 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
+st.set_page_config(page_title="ICU Data Entry", layout="centered")
+st.title("🏥 ICU Prognostic Data Entry")
+
 # Bağlantı
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Veriyi oku (Boş tablo hatasını engellemek için try-except)
-try:
-    existing_data = conn.read(worksheet="Sheet1")
-    # Eğer tablo boşsa DataFrame None dönebilir, onu temizle
-    if existing_data is None or existing_data.empty:
-        existing_data = pd.DataFrame(columns=["Age", "CCI", "SOFA", "Sepsis", "Center", "Hemoglobin", "Albumin", "Lymphocyte", "Platelet", "CRP", "Unfavorable_Discharge"])
-    else:
-        existing_data = existing_data.dropna(how="all")
-except Exception as e:
-    # Tablo okunamazsa sıfırdan sütunları oluştur
-    existing_data = pd.DataFrame(columns=["Age", "CCI", "SOFA", "Sepsis", "Center", "Hemoglobin", "Albumin", "Lymphocyte", "Platelet", "CRP", "Unfavorable_Discharge"])
-
-# Mevcut veriyi çek (Sütun başlıklarını almak için)
-existing_data = conn.read(worksheet="Sheet1", usecols=list(range(11)))
-existing_data = existing_data.dropna(how="all")
-
-# Giriş Formu
-with st.form(key="icu_form"):
+# Form
+with st.form(key="icu_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     
     with col1:
@@ -43,17 +30,31 @@ with st.form(key="icu_form"):
     submit_button = st.form_submit_button(label="Veriyi Kaydet")
 
 if submit_button:
-    # Yeni veri satırı
-    new_data = pd.DataFrame([{
+    # 1. Önce güncel veriyi o an çek (Başkası veri girdiyse kaybolmasın)
+    try:
+        existing_data = conn.read(worksheet="Sheet1")
+        if existing_data is None:
+            existing_data = pd.DataFrame()
+    except:
+        existing_data = pd.DataFrame()
+
+    # 2. Yeni satırı hazırla
+    new_row = pd.DataFrame([{
         "Age": age, "CCI": cci, "SOFA": sofa, "Sepsis": sepsis,
         "Center": center, "Hemoglobin": hb, "Albumin": alb,
         "Lymphocyte": lym, "Platelet": plt, "CRP": crp,
         "Unfavorable_Discharge": out
     }])
     
-    # Veriyi ekle ve güncelle
-    updated_df = pd.concat([existing_data, new_data], ignore_index=True)
+    # 3. Mevcut veriyle birleştir (dropna ile boş satırları temizle)
+    updated_df = pd.concat([existing_data, new_row], ignore_index=True).dropna(how="all")
+    
+    # 4. TAM listeyi gönder (Update en garanti yoldur ama doğru data ile)
     conn.update(worksheet="Sheet1", data=updated_df)
     
-    st.success("Veri başarıyla merkeze gönderildi!")
+    st.success("Veri başarıyla eklendi!")
     st.balloons()
+
+# Opsiyonel: Tabloyu aşağıda önizle (Veri geliyor mu görmüş olursun)
+if st.checkbox("Mevcut Verileri Göster"):
+    st.dataframe(conn.read(worksheet="Sheet1"))
