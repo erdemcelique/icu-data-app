@@ -2,13 +2,20 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
-# Sayfa Ayarları
-st.set_page_config(page_title="ICU Data Entry", layout="centered")
-st.title("🏥 ICU Prognostic Data Entry")
-st.markdown("Verileri girin ve 'Kaydet' butonuna basın. Veriler merkezi sistemde toplanacaktır.")
-
-# Google Sheets Bağlantısı
+# Bağlantı
 conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Veriyi oku (Boş tablo hatasını engellemek için try-except)
+try:
+    existing_data = conn.read(worksheet="Sheet1")
+    # Eğer tablo boşsa DataFrame None dönebilir, onu temizle
+    if existing_data is None or existing_data.empty:
+        existing_data = pd.DataFrame(columns=["Age", "CCI", "SOFA", "Sepsis", "Center", "Hemoglobin", "Albumin", "Lymphocyte", "Platelet", "CRP", "Unfavorable_Discharge"])
+    else:
+        existing_data = existing_data.dropna(how="all")
+except Exception as e:
+    # Tablo okunamazsa sıfırdan sütunları oluştur
+    existing_data = pd.DataFrame(columns=["Age", "CCI", "SOFA", "Sepsis", "Center", "Hemoglobin", "Albumin", "Lymphocyte", "Platelet", "CRP", "Unfavorable_Discharge"])
 
 # Mevcut veriyi çek (Sütun başlıklarını almak için)
 existing_data = conn.read(worksheet="Sheet1", usecols=list(range(11)))
