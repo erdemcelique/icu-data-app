@@ -1,7 +1,36 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+import streamlit as st
 
+# --- GÜVENLİK AYARLARI ---
+USER_CREDENTIALS = {
+    "merkez_admin": "sifre123",
+    "ankara_ekip": "ank789",
+    "istanbul_ekip": "ist456"
+}
+
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+        st.title("🔒 Yetkili Girişi")
+        user = st.text_input("Kullanıcı Adı")
+        pw = st.text_input("Şifre", type="password")
+        if st.button("Giriş Yap"):
+            if user in USER_CREDENTIALS and USER_CREDENTIALS[user] == pw:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Hatalı kullanıcı adı veya şifre!")
+        return False
+    return True
+
+if check_password():
+    # --- BURADAN SONRASI SENİN FORM KODLARIN ---
+    st.sidebar.button("Çıkış Yap", on_click=lambda: st.session_state.update({"authenticated": False}))
+    # (Buraya conn.read, form vs. gelecek...)
 st.set_page_config(page_title="ICU Data Entry", layout="centered")
 st.title("🏥 ICU Data Entry")
 
@@ -50,3 +79,4 @@ if submit_button:
     
     st.success("Veri başarıyla eklendi!")
     st.balloons()
+
